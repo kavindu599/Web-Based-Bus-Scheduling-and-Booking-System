@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Select Bus - Seat Booking System</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="/css/app.css"/>
+    <style>
+        .bus-selection-card {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .quick-select-btn {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+<!-- Navigation bar -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand brand-logo" href="/seatmap/BUS001">Seat Booking System</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center">
+                <li class="nav-item me-2">
+                    <a class="btn btn-sm btn-primary" href="/select-bus">Select Bus</a>
+                </li>
+                <li class="nav-item me-2">
+                    <a class="btn btn-sm btn-warning" href="/manage-bookings">Manage Bookings</a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-sm btn-success" href="/confirmations">Confirmations</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="bus-selection-card bg-white">
+        <div class="text-center mb-4">
+            <h2 class="text-primary">🚌 Bus Seat Booking System</h2>
+            <p class="text-muted">Select a bus to view available seats</p>
+        </div>
+
+        <!-- Error message -->
+        <div th:if="${param.error}" class="alert alert-danger" th:text="${param.error[0]}"></div>
+
+        <!-- Bus selection form -->
+        <form th:action="@{/select-bus}" method="post">
+            <div class="mb-3">
+                <label for="busNumber" class="form-label">Select Bus Number:</label>
+                <select class="form-select" id="busNumber" name="busNumber" required>
+                    <option value="">-- Choose a Bus --</option>
+                    <optgroup label="Regular Service">
+                        <option value="BUS001">BUS001 - Regular Service</option>
+                        <option value="BUS002">BUS002 - Regular Service</option>
+                        <option value="BUS003">BUS003 - Regular Service</option>
+                    </optgroup>
+                    <optgroup label="Deluxe Service">
+                        <option value="DELUXE01">DELUXE01 - Deluxe Service</option>
+                        <option value="DELUXE02">DELUXE02 - Deluxe Service</option>
+                    </optgroup>
+                    <optgroup label="Express Service">
+                        <option value="EXPRESS01">EXPRESS01 - Express Service</option>
+                        <option value="EXPRESS02">EXPRESS02 - Express Service</option>
+                    </optgroup>
+                    <optgroup label="Premium Services">
+                        <option value="SLEEPER01">SLEEPER01 - Sleeper Coach</option>
+                        <option value="AC001">AC001 - AC Service</option>
+                        <option value="AC002">AC002 - AC Service</option>
+                    </optgroup>
+                </select>
+                <div class="form-text">Select a bus to view its seat map and make bookings</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Or enter custom bus number:</label>
+                <input type="text" class="form-control" id="customBusNumber" name="customBusNumber"
+                       placeholder="e.g., BUS123, CUSTOM01">
+                <div class="form-text">Enter any bus number to create a new bus route</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">View Seat Map</button>
+        </form>
+
+        <hr class="my-4">
+
+        <!-- Quick selection buttons -->
+        <div class="text-center">
+            <h6 class="text-muted mb-3">Quick Select:</h6>
+            <div class="d-flex flex-wrap justify-content-center">
+                <a href="/seatmap/BUS001" class="btn btn-outline-primary quick-select-btn">BUS001</a>
+                <a href="/seatmap/BUS002" class="btn btn-outline-primary quick-select-btn">BUS002</a>
+                <a href="/seatmap/BUS003" class="btn btn-outline-primary quick-select-btn">BUS003</a>
+                <a href="/seatmap/DELUXE01" class="btn btn-outline-success quick-select-btn">DELUXE01</a>
+                <a href="/seatmap/EXPRESS01" class="btn btn-outline-warning quick-select-btn">EXPRESS01</a>
+            </div>
+        </div>
+
+        <!-- Information section -->
+        <div class="mt-4 p-3 bg-light rounded">
+            <h6 class="text-primary">📋 Booking Information:</h6>
+            <ul class="small text-muted mb-0">
+                <li>Phone number must be exactly 10 digits</li>
+                <li>Seat numbers range from 1 to 40</li>
+                <li>Bus numbers can be any alphanumeric value</li>
+                <li>Single and group bookings are supported</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/app.js"></script>
+<script>
+    // Handle form interaction between dropdown and custom input
+    const busDropdown = document.getElementById('busNumber');
+    const customInput = document.getElementById('customBusNumber');
+
+    // Clear custom input when dropdown is selected
+    busDropdown.addEventListener('change', function() {
+        if (this.value) {
+            customInput.value = '';
+            customInput.removeAttribute('required');
+        } else {
+            customInput.setAttribute('required', 'required');
+        }
+    });
+
+    // Clear dropdown when custom input is used
+    customInput.addEventListener('input', function() {
+        if (this.value.trim()) {
+            busDropdown.value = '';
+            busDropdown.removeAttribute('required');
+        } else {
+            busDropdown.setAttribute('required', 'required');
+        }
+    });
+
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const dropdownValue = busDropdown.value.trim();
+        const customValue = customInput.value.trim();
+
+        if (!dropdownValue && !customValue) {
+            e.preventDefault();
+            alert('Please select a bus from the dropdown or enter a custom bus number.');
+        }
+    });
+</script>
+</body>
+<!-- Footer -->
+<footer class="footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <h5>LankaGoExpress</h5>
+                <p>Your reliable partner for bus travel across the nation. Book your seats with comfort and ease.</p>
+            </div>
+            <div class="col-md-2 mb-3">
+                <h5>Quick Links</h5>
+                <ul class="list-unstyled">
+                    <li><a href="/select-bus">Home</a></li>
+                    <li><a href="/manage-bookings">Manage Bookings</a></li>
+                    <li><a href="/confirmations">Confirmations</a></li>
+                    <li><a href="/seatmap/BUS001">Seat Map</a></li>
+                </ul>
+            </div>
+            <div class="col-md-3 mb-3">
+                <h5>Contact Us</h5>
+                <p>
+                    Email: <a href="mailto:support@lankago.express">support@lankago.express</a><br>
+                    Phone: +94 11 234 5678
+                </p>
+            </div>
+            <div class="col-md-3 mb-3">
+                <h5>Follow Us</h5>
+                <div class="social-icons">
+                    <a href="#">Facebook</a> |
+                    <a href="#">Twitter</a> |
+                    <a href="#">Instagram</a>
+                </div>
+            </div>
+        </div>
+        <div class="bottom-bar">
+            &copy; 2025 LankaGoExpress. All rights reserved.
+        </div>
+    </div>
+</footer>
+</html>
