@@ -1,0 +1,195 @@
+# =========================
+# Bus Scheduling & Management System
+# Spring Boot 3 / MySQL / Flyway / JWT
+# =========================
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: bus_mgmt2
+  datasource:
+    url: jdbc:mysql://localhost:3306/bus_mgmt2?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Colombo
+    username: root
+    password:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 60000
+      connection-timeout: 30000
+      pool-name: bus-mgmt-hikari
+  jpa:
+    hibernate:
+      ddl-auto: none          # we use Flyway; do not let Hibernate create/drop
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.time_zone: Asia/Colombo
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+# OpenAPI / Swagger UI
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    operationsSorter: alpha
+    tagsSorter: alpha
+    displayRequestDuration: true
+
+# Expose health for IT Tech
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# ==== App-specific settings ====
+app:
+  jwt:
+    issuer: bus-mgmt
+    # Use env var in real deployments; default provided for local dev:
+    secret: ${APP_JWT_SECRET:CHANGE-ME-TO-A-256-BIT-SECRET-STRING-AT-LEAST-32-CHARS}
+    access-token-minutes: ${APP_JWT_ACCESS_MINUTES:60}
+    refresh-token-days: ${APP_JWT_REFRESH_DAYS:7}
+  refund-policy:
+    # Policy tiers used by service & stored procedure parity
+    tiers:
+      - { hours: 24, pct: 1.0 }  # >=24h -> 100%
+      - { hours: 12, pct: 0.5 }  # >=12h -> 50%
+      - { hours: 2,  pct: 0.2 }  # >=2h  -> 20%
+  notifications:
+    email:
+      enabled: true
+      # dev: we'll log emails instead of sending
+    sms:
+      enabled: true
+      # dev: we'll log sms instead of sending
+
+# CORS handled by CorsConfig; you can restrict here if preferred:
+# (kept permissive for local integration with the pure HTML/CSS frontend)
+# If you prefer central CORS, remove CorsFilter bean and uncomment below.
+# spring:
+#   web:
+#     cors:
+#       allowed-origins: "http://localhost:5173,http://127.0.0.1:5173"
+#       allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+#       allowed-headers: "*"
+#       allow-credentials: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: INFO
+    org.flywaydb.core: INFO
+
+---
+# ===== DEV PROFILE =====
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:mysql://localhost:3306/bus_mgmt_dev?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: root
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    root: DEBUG
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:DEV-SECRET-CHANGE-ME-1234567890-DEV-DEV-DEV}
+  notifications:
+    email:
+      enabled: true
+    sms:
+      enabled: true
+
+---
+# ===== TEST PROFILE =====
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:mysql://localhost:3306/bus_mgmt_test?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: root
+  jpa:
+    properties:
+      hibernate:
+        show_sql: false
+  flyway:
+    enabled: true
+  main:
+    allow-bean-definition-overriding: true
+
+logging:
+  level:
+    root: WARN
+
+app:
+  jwt:
+    secret: TEST-SECRET-ONLY-FOR-JUNITS-DO-NOT-USE-IN-PROD
+
+---
+# ===== PROD PROFILE =====
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${JDBC_URL}
+    username: ${JDBC_USERNAME}
+    password: ${JDBC_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN:2}
+  flyway:
+    enabled: true
+  jpa:
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+        format_sql: false
+
+server:
+  compression:
+    enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+
+app:
+  jwt:
+    issuer: ${APP_JWT_ISSUER:bus-mgmt}
+    secret: ${APP_JWT_SECRET}       # REQUIRED in prod
+    access-token-minutes: ${APP_JWT_ACCESS_MINUTES:60}
+    refresh-token-days: ${APP_JWT_REFRESH_DAYS:7}
+  notifications:
+    email:
+      enabled: ${APP_EMAIL_ENABLED:true}
+    sms:
+      enabled: ${APP_SMS_ENABLED:true}

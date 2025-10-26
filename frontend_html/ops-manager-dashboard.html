@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ops Manager Dashboard - Bus Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --primary-light: #34d399;
+            --accent: #14b8a6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark-bg: rgba(197, 3, 3, 0.5);
+            --dark-surface: rgba(14, 165, 233, 0.3);
+            --dark-surface-light: #334155;
+            --text: rgb(255, 255, 255);
+            --text-light: #ffffff;
+            --border: rgba(148, 163, 184, 0.2);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Oxygen', 'Ubuntu', sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1a1f35 100%);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, var(--dark-surface) 0%, var(--dark-surface-light) 100%);
+            border-right: 1px solid var(--border);
+            padding: 30px 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            animation: slideInLeft 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideInLeft {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .sidebar-header {
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h2 {
+            font-size: 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 5px;
+            font-weight: 800;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: var(--text-light);
+            word-break: break-all;
+            opacity: 0.8;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 14px 16px;
+            color: var(--text-light);
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            font-weight: 500;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(20, 184, 166, 0.05) 100%);
+            border-radius: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+            border-left-color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        .nav-link:hover::before {
+            opacity: 1;
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(20, 184, 166, 0.1) 100%);
+            color: var(--primary);
+            border-left-color: var(--primary);
+            font-weight: 600;
+            box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.1);
+        }
+
+        .logout-btn {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            color: var(--text);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: left 0.3s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--primary);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 12px;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+            animation: fadeInScale 0.4s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .card {
+            background: linear-gradient(135deg, var(--dark-surface) 0%, var(--dark-surface-light) 100%);
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card:hover {
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.2);
+            transform: translateY(-4px);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(20, 184, 166, 0.05) 100%);
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid var(--border);
+            text-align: center;
+            animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .stat-card h3 {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            background: rgba(16, 185, 129, 0.05);
+            color: var(--text);
+        }
+
+        input::placeholder, select::placeholder {
+            color: var(--text-light);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(16, 185, 129, 0.1);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(20, 184, 166, 0.05) 100%);
+            padding: 16px;
+            text-align: left;
+            font-weight: 700;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 12px;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover {
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-success {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-danger {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+            color: #fcd34d;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-info {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(20, 184, 166, 0.1) 100%);
+            color: #5eead4;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, var(--dark-surface) 0%, var(--dark-surface-light) 100%);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+        }
+
+        .modal-header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 22px;
+            color: var(--text);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-close {
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-light);
+            background: none;
+            border: none;
+            transition: all 0.3s ease;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-light);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(16, 185, 129, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+            color: #fca5a5;
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-left: 4px solid var(--danger);
+            font-weight: 500;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+            color: #6ee7b7;
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+            animation: slideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-left: 4px solid var(--success);
+            font-weight: 500;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .info-box {
+            background: rgba(16, 185, 129, 0.05);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .info-box h4 {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .info-box p {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                padding: 20px;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Ops Manager</h2>
+                <p id="userEmail">Loading...</p>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a class="nav-link active" onclick="showSection(event, 'dashboard')">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showSection(event, 'routes')">Routes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showSection(event, 'stops')">Stops</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showSection(event, 'trips')">Trips</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showSection(event, 'assignments')">Assignments</a>
+                </li>
+            </ul>
+            <div class="logout-btn">
+                <button class="btn btn-secondary" style="width: 100%;" onclick="logout()">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="content-section active">
+                <div class="header">
+                    <h1>Dashboard</h1>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Routes</h3>
+                        <div class="value" id="totalRoutes">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Active Trips</h3>
+                        <div class="value" id="activeTrips">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Stops</h3>
+                        <div class="value" id="totalStops">0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Welcome to Operations Manager Dashboard</h2>
+                    <p style="color: var(--text-light); margin-top: 12px; line-height: 1.6;">
+                        Manage routes, stops, trips, and bus/driver assignments from this dashboard. Monitor all operations and ensure smooth bus management.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Routes Section -->
+            <div id="routes" class="content-section">
+                <div class="header">
+                    <h1>Routes Management</h1>
+                    <button class="btn btn-primary" onclick="openCreateRouteModal()">Create Route</button>
+                </div>
+                <div class="card">
+                    <div id="routesLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading routes...</p>
+                    </div>
+                    <div id="routesError" class="error-message"></div>
+                    <div class="table-responsive" id="routesTableContainer" style="display: none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Origin</th>
+                                    <th>Destination</th>
+                                    <th>Distance (km)</th>
+                                    <th>Duration (min)</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="routesTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stops Section -->
+            <div id="stops" class="content-section">
+                <div class="header">
+                    <h1>Stops Management</h1>
+                    <button class="btn btn-primary" onclick="openCreateStopModal()">Create Stop</button>
+                </div>
+                <div class="card">
+                    <div id="stopsLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading stops...</p>
+                    </div>
+                    <div id="stopsError" class="error-message"></div>
+                    <div class="table-responsive" id="stopsTableContainer" style="display: none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Latitude</th>
+                                    <th>Longitude</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stopsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trips Section -->
+            <div id="trips" class="content-section">
+                <div class="header">
+                    <h1>Trips Management</h1>
+                    <button class="btn btn-primary" onclick="openCreateTripModal()">Create Trip</button>
+                </div>
+                <div class="card">
+                    <div id="tripsLoading" class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading trips...</p>
+                    </div>
+                    <div id="tripsError" class="error-message"></div>
+                    <div class="table-responsive" id="tripsTableContainer" style="display: none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Route</th>
+                                    <th>Departure</th>
+                                    <th>Arrival</th>
+                                    <th>Driver</th>
+                                    <th>Bus</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tripsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assignments Section -->
+            <div id="assignments" class="content-section">
+                <div class="header">
+                    <h1>Bus & Driver Assignments</h1>
+                </div>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Available Buses</h3>
+                        <div id="busesLoading" class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                        <div id="busesList"></div>
+                    </div>
+                    <div class="card">
+                        <h3>Available Drivers</h3>
+                        <div id="driversLoading" class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                        <div id="driversList"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Assign Bus & Driver to Trip</h3>
+                    <div id="assignmentError" class="error-message"></div>
+                    <form onsubmit="handleAssignment(event)">
+                        <div class="form-group">
+                            <label for="assignTripId">Trip ID</label>
+                            <input type="number" id="assignTripId" required placeholder="Enter trip ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="assignBusId">Bus ID</label>
+                            <input type="number" id="assignBusId" required placeholder="Enter bus ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="assignDriverId">Driver ID</label>
+                            <input type="number" id="assignDriverId" required placeholder="Enter driver ID">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Assign</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Route Modal -->
+    <div id="createRouteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Route</h2>
+                <button class="modal-close" onclick="closeModal('createRouteModal')">&times;</button>
+            </div>
+            <div id="routeError" class="error-message"></div>
+            <form onsubmit="handleCreateRoute(event)">
+                <div class="form-group">
+                    <label for="routeName">Route Name</label>
+                    <input type="text" id="routeName" required placeholder="e.g., City Center to Airport" minlength="3">
+                </div>
+                <div class="form-group">
+                    <label for="routeOrigin">Origin</label>
+                    <input type="text" id="routeOrigin" required placeholder="Starting point" minlength="2">
+                </div>
+                <div class="form-group">
+                    <label for="routeDestination">Destination</label>
+                    <input type="text" id="routeDestination" required placeholder="Ending point" minlength="2">
+                </div>
+                <div class="form-group">
+                    <label for="routeDistance">Distance (km)</label>
+                    <input type="number" id="routeDistance" step="0.1" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label for="routeDuration">Duration (minutes)</label>
+                    <input type="number" id="routeDuration" required placeholder="120" min="0">
+                </div>
+                <button type="submit" class="btn btn-primary">Create Route</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Stop Modal -->
+    <div id="createStopModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Stop</h2>
+                <button class="modal-close" onclick="closeModal('createStopModal')">&times;</button>
+            </div>
+            <div id="stopError" class="error-message"></div>
+            <form onsubmit="handleCreateStop(event)">
+                <div class="form-group">
+                    <label for="stopName">Stop Name</label>
+                    <input type="text" id="stopName" required placeholder="e.g., Central Station" minlength="2">
+                </div>
+                <div class="form-group">
+                    <label for="stopLat">Latitude</label>
+                    <input type="number" id="stopLat" required step="0.0001" placeholder="e.g., 40.7128" min="-90" max="90">
+                </div>
+                <div class="form-group">
+                    <label for="stopLng">Longitude</label>
+                    <input type="number" id="stopLng" required step="0.0001" placeholder="e.g., -74.0060" min="-180" max="180">
+                </div>
+                <button type="submit" class="btn btn-primary">Create Stop</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Trip Modal -->
+    <div id="createTripModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Trip</h2>
+                <button class="modal-close" onclick="closeModal('createTripModal')">&times;</button>
+            </div>
+            <div id="tripError" class="error-message"></div>
+            <form onsubmit="handleCreateTrip(event)">
+                <div class="form-group">
+                    <label for="tripRouteId">Route ID</label>
+                    <input type="number" id="tripRouteId" required placeholder="Enter route ID">
+                </div>
+                <div class="form-group">
+                    <label for="tripDeparture">Departure Time</label>
+                    <input type="datetime-local" id="tripDeparture" required>
+                </div>
+                <div class="form-group">
+                    <label for="tripArrival">Arrival Time</label>
+                    <input type="datetime-local" id="tripArrival" required>
+                </div>
+                <div class="form-group">
+                    <label for="tripBusId">Bus ID (Optional)</label>
+                    <input type="number" id="tripBusId" placeholder="Leave empty to assign later">
+                </div>
+                <div class="form-group">
+                    <label for="tripDriverId">Driver ID (Optional)</label>
+                    <input type="number" id="tripDriverId" placeholder="Leave empty to assign later">
+                </div>
+                <button type="submit" class="btn btn-primary">Create Trip</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+
+        function getAuthHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            };
+        }
+
+        function showSection(e, sectionId) {
+            e.preventDefault();
+            document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            e.target.classList.add('active');
+
+            if (sectionId === 'routes') loadRoutes();
+            else if (sectionId === 'stops') loadStops();
+            else if (sectionId === 'trips') loadTrips();
+            else if (sectionId === 'assignments') loadAssignments();
+            else if (sectionId === 'dashboard') loadDashboardStats();
+        }
+
+        async function loadDashboardStats() {
+            try {
+                const [routesRes, tripsRes, stopsRes] = await Promise.all([
+                    fetch(`${API_BASE}/routes?page=1&size=1000`, { headers: getAuthHeaders() }),
+                    fetch(`${API_BASE}/trips?page=1&size=1000`, { headers: getAuthHeaders() }),
+                    fetch(`${API_BASE}/stops`, { headers: getAuthHeaders() })
+                ]);
+
+                const routesData = await routesRes.json();
+                const tripsData = await tripsRes.json();
+                const stopsData = await stopsRes.json();
+
+                const routes = routesData.content || routesData.items || [];
+                const trips = tripsData.content || tripsData.items || [];
+                const stops = Array.isArray(stopsData) ? stopsData : [];
+
+                document.getElementById('totalRoutes').textContent = routes.length;
+                document.getElementById('activeTrips').textContent = trips.filter(t => t.status === 'SCHEDULED' || t.status === 'ACTIVE').length;
+                document.getElementById('totalStops').textContent = stops.length;
+            } catch (error) {
+                console.error('[v0] Error loading stats:', error);
+            }
+        }
+
+        async function loadRoutes() {
+            const loadingEl = document.getElementById('routesLoading');
+            const errorEl = document.getElementById('routesError');
+            const tableContainer = document.getElementById('routesTableContainer');
+            const tableBody = document.getElementById('routesTable');
+
+            loadingEl.style.display = 'block';
+            errorEl.classList.remove('show');
+            tableContainer.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/routes?page=1&size=1000`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) throw new Error('Failed to load routes');
+
+                const data = await response.json();
+                const routes = data.content || data.items || [];
+
+                if (routes.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-light);">No routes found</td></tr>';
+                } else {
+                    tableBody.innerHTML = routes.map(route => `
+                        <tr>
+                            <td><strong>${route.id}</strong></td>
+                            <td>${route.name}</td>
+                            <td>${route.origin}</td>
+                            <td>${route.destination}</td>
+                            <td>${route.distanceKm || '-'}</td>
+                            <td>${route.durationMin}</td>
+                            <td><span class="badge ${route.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}">${route.status}</span></td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-secondary" onclick="editRoute(${route.id})">Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteRoute(${route.id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                loadingEl.style.display = 'none';
+                tableContainer.style.display = 'block';
+            } catch (error) {
+                console.error('[v0] Error loading routes:', error);
+                errorEl.textContent = '✕ ' + error.message;
+                errorEl.classList.add('show');
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        async function loadStops() {
+            const loadingEl = document.getElementById('stopsLoading');
+            const errorEl = document.getElementById('stopsError');
+            const tableContainer = document.getElementById('stopsTableContainer');
+            const tableBody = document.getElementById('stopsTable');
+
+            loadingEl.style.display = 'block';
+            errorEl.classList.remove('show');
+            tableContainer.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/stops`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) throw new Error('Failed to load stops');
+
+                const stops = await response.json();
+
+                if (!Array.isArray(stops) || stops.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-light);">No stops found</td></tr>';
+                } else {
+                    tableBody.innerHTML = stops.map(stop => `
+                        <tr>
+                            <td><strong>${stop.id}</strong></td>
+                            <td>${stop.name}</td>
+                            <td>${stop.lat.toFixed(4)}</td>
+                            <td>${stop.lng.toFixed(4)}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-secondary" onclick="editStop(${stop.id})">Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteStop(${stop.id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                loadingEl.style.display = 'none';
+                tableContainer.style.display = 'block';
+            } catch (error) {
+                console.error('[v0] Error loading stops:', error);
+                errorEl.textContent = '✕ ' + error.message;
+                errorEl.classList.add('show');
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        async function loadTrips() {
+            const loadingEl = document.getElementById('tripsLoading');
+            const errorEl = document.getElementById('tripsError');
+            const tableContainer = document.getElementById('tripsTableContainer');
+            const tableBody = document.getElementById('tripsTable');
+
+            loadingEl.style.display = 'block';
+            errorEl.classList.remove('show');
+            tableContainer.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/trips?page=1&size=1000`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) throw new Error('Failed to load trips');
+
+                const data = await response.json();
+                const trips = data.content || data.items || [];
+
+                if (trips.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-light);">No trips found</td></tr>';
+                } else {
+                    tableBody.innerHTML = trips.map(trip => `
+                        <tr>
+                            <td><strong>${trip.id}</strong></td>
+                            <td>${trip.route?.name || '-'}</td>
+                            <td>${new Date(trip.departureTime).toLocaleString()}</td>
+                            <td>${new Date(trip.arrivalTime).toLocaleString()}</td>
+                            <td>${trip.driver ? trip.driver.firstName + ' ' + trip.driver.lastName : '-'}</td>
+                            <td>${trip.bus?.plateNumber || '-'}</td>
+                            <td><span class="badge badge-info">${trip.status}</span></td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-secondary" onclick="editTrip(${trip.id})">Edit</button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteTrip(${trip.id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                loadingEl.style.display = 'none';
+                tableContainer.style.display = 'block';
+            } catch (error) {
+                console.error('[v0] Error loading trips:', error);
+                errorEl.textContent = '✕ ' + error.message;
+                errorEl.classList.add('show');
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        async function loadAssignments() {
+            try {
+                const [busesRes, driversRes] = await Promise.all([
+                    fetch(`${API_BASE}/assignments/available-buses`, { headers: getAuthHeaders() }),
+                    fetch(`${API_BASE}/assignments/available-drivers`, { headers: getAuthHeaders() })
+                ]);
+
+                const buses = await busesRes.json();
+                const drivers = await driversRes.json();
+
+                document.getElementById('busesLoading').style.display = 'none';
+                document.getElementById('driversLoading').style.display = 'none';
+
+                document.getElementById('busesList').innerHTML = (Array.isArray(buses) && buses.length > 0)
+                    ? buses.map(bus => `<div class="info-box"><h4>Bus</h4><p>${bus}</p></div>`).join('')
+                    : '<p style="color: var(--text-light);">No available buses</p>';
+
+                document.getElementById('driversList').innerHTML = (Array.isArray(drivers) && drivers.length > 0)
+                    ? drivers.map(driver => `<div class="info-box"><h4>Driver</h4><p>${driver}</p></div>`).join('')
+                    : '<p style="color: var(--text-light);">No available drivers</p>';
+            } catch (error) {
+                console.error('[v0] Error loading assignments:', error);
+                document.getElementById('busesLoading').style.display = 'none';
+                document.getElementById('driversLoading').style.display = 'none';
+            }
+        }
+
+        function openCreateRouteModal() {
+            document.getElementById('createRouteModal').classList.add('show');
+        }
+
+        function openCreateStopModal() {
+            document.getElementById('createStopModal').classList.add('show');
+        }
+
+        function openCreateTripModal() {
+            document.getElementById('createTripModal').classList.add('show');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        async function handleCreateRoute(e) {
+            e.preventDefault();
+            const name = document.getElementById('routeName').value.trim();
+            const origin = document.getElementById('routeOrigin').value.trim();
+            const destination = document.getElementById('routeDestination').value.trim();
+            const distanceKm = parseFloat(document.getElementById('routeDistance').value) || 0;
+            const durationMin = parseInt(document.getElementById('routeDuration').value);
+            const errorEl = document.getElementById('routeError');
+
+            try {
+                const response = await fetch(`${API_BASE}/routes`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ name, origin, destination, distanceKm, durationMin })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || data.message || 'Failed to create route');
+                }
+
+                closeModal('createRouteModal');
+                document.querySelector('#createRouteModal form').reset();
+                loadRoutes();
+            } catch (error) {
+                console.error('[v0] Error creating route:', error);
+                errorEl.textContent = '✕ ' + error.message;
+                errorEl.classList.add('show');
+            }
+        }
+
+        async function handleCreateStop(e) {
+            e.preventDefault();
+            const name = document.getElementById('stopName').value.trim();
+            const lat = parseFloat(document.getElementById('stopLat').value);
+            const lng = parseFloat(document.getElementById('stopLng').value);
+            const errorEl = document.getElementById('stopError');
+
+            try {
+                const response = await fetch(`${API_BASE}/stops`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ name, lat, lng })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || data.message || 'Failed to create stop');
+                }
+
+                closeModal('createStopModal');
+                document.querySelector('#createStopModal form').reset();
+                loadStops();
+            } catch (error) {
+                console.error('[v0] Error creating stop:', error);
+                errorEl.textContent = '✕ ' + error.message;
+                errorEl.classList.add('show');
+            }
+        }
+
+        async function handleCreateTrip(e) {
+            e.preventDefault();
+            const routeId = parseInt(document.getElementById('tripRouteId').value);
+            const departureTime = document.getElementById('tripDeparture').value;
+            const arrivalTime = document.getElementById('tripArrival').value;
+            const busId = document.getElementById('tripBusId').value ? parseInt(document.getElementById('tripBusId').value) : null;
+            const driverId = document.getElementById('tripDriverId').value ? parseInt(document.getElementById('tripDriverId').value) : null;
+            const errorEl = document.getElementById('tripError');
+
+            try {
+                const response = await fetch(`${API_BASE}/trips`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ routeId, departureTime, arrivalTime, busId, driverId })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || data.message || 'Failed to create trip');
+                }
+
+                closeModal('createTripModal');
+                document.querySelector('#createTripModal form').reset();
+                loadTrips();
+            } catch (error) {
+                console.error('[v0] Error creating trip:', error);
+                errorEl.textContent = '✕ ' + error.message;
+                errorEl.classList.add('show');
+            }
+        }
+
+        async function handleAssignment(e) {
+            e.preventDefault();
+            const tripId = parseInt(document.getElementById('assignTripId').value);
+            const busId = parseInt(document.getElementById('assignBusId').value);
+            const driverId = parseInt(document.getElementById('assignDriverId').value);
+            const errorEl = document.getElementById('assignmentError');
+
+            try {
+                const response = await fetch(`${API_BASE}/assignments/by-lookup`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ tripId, busId, driverId })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || data.message || 'Failed to assign');
+                }
+
+                alert('Assignment successful!');
+                document.querySelector('#assignments form').reset();
+                loadAssignments();
+            } catch (error) {
+                console.error('[v0] Error assigning:', error);
+                errorEl.textContent = '✕ ' + error.message;
+                errorEl.classList.add('show');
+            }
+        }
+
+        async function deleteRoute(id) {
+            if (!confirm('Are you sure you want to delete this route?')) return;
+            try {
+                const response = await fetch(`${API_BASE}/routes/${id}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) throw new Error('Failed to delete');
+                loadRoutes();
+            } catch (error) {
+                console.error('[v0] Error deleting route:', error);
+                alert(error.message);
+            }
+        }
+
+        async function deleteStop(id) {
+            if (!confirm('Are you sure you want to delete this stop?')) return;
+            try {
+                const response = await fetch(`${API_BASE}/stops/${id}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) throw new Error('Failed to delete');
+                loadStops();
+            } catch (error) {
+                console.error('[v0] Error deleting stop:', error);
+                alert(error.message);
+            }
+        }
+
+        async function deleteTrip(id) {
+            if (!confirm('Are you sure you want to delete this trip?')) return;
+            try {
+                const response = await fetch(`${API_BASE}/trips/${id}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) throw new Error('Failed to delete');
+                loadTrips();
+            } catch (error) {
+                console.error('[v0] Error deleting trip:', error);
+                alert(error.message);
+            }
+        }
+
+        function editRoute(id) {
+            alert('Edit functionality coming soon');
+        }
+
+        function editStop(id) {
+            alert('Edit functionality coming soon');
+        }
+
+        function editTrip(id) {
+            alert('Edit functionality coming soon');
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.clear();
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Initialize
+        try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            document.getElementById('userEmail').textContent = user?.email || 'User';
+            loadDashboardStats();
+        } catch (e) {
+            console.error('[v0] Init error:', e);
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

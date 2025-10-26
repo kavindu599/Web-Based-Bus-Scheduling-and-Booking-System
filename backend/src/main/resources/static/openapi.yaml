@@ -1,0 +1,1350 @@
+openapi: 3.0.3
+info:
+  title: Bus Scheduling & Management System API
+  version: "1.0.0"
+  description: |
+    REST API for an online Bus Scheduling & Management System.
+    - Auth: JWT Bearer; password hashing; RBAC.
+    - Error model: RFC 7807 (application/problem+json).
+    - Dates/times: ISO-8601 (UTC) strings.
+    - Pagination: page (1-based), size (1..100), sort ("field,asc|desc").
+    - Filtering: name-based where applicable (search by names, not only ids).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Auth
+  - name: Users
+  - name: Routes
+  - name: Stops
+  - name: Trips
+  - name: Assignments
+  - name: Booking
+  - name: Payments
+  - name: Tickets
+  - name: Refunds
+  - name: Verifications
+  - name: Issues
+  - name: Reports
+  - name: Health
+
+paths:
+
+  /api/auth/public/register:
+    post:
+      tags: [ Auth ]
+      summary: Public registration (default role = PASSENGER)
+      description: Creates a new user with role PASSENGER. No authentication required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublicRegisterRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Admin/IT — create user with explicit roles
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserRegisterRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and obtain JWT access/refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Tokens
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RefreshResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List users (search by name/email)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - $ref: '#/components/parameters/sort'
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 120 }
+          description: Search by full_name or email (contains, case-insensitive)
+      responses:
+        '200':
+          description: Page of users
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PageUserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Users]
+      summary: Create user (IT Tech / Admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Users]
+      summary: Update user (name, phone, roles managed separately)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users/{id}:deactivate:
+    patch:
+      tags: [Users]
+      summary: Deactivate a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204': { description: Deactivated }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users/{id}/roles:
+    post:
+      tags: [ Users ]
+      summary: Set user roles (IT Tech / Admin only)
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetRolesRequest' }
+      responses:
+        '200':
+          description: Updated user with new roles
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/routes:
+    get:
+      tags: [Routes]
+      summary: List/search routes by name/origin/destination
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - $ref: '#/components/parameters/sort'
+        - in: query
+          name: name
+          schema: { type: string }
+        - in: query
+          name: origin
+          schema: { type: string }
+        - in: query
+          name: destination
+          schema: { type: string }
+      responses:
+        '200':
+          description: Page of routes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PageRouteResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Routes]
+      summary: Create a route
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RouteCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RouteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/routes/{id}:
+    get:
+      tags: [Routes]
+      summary: Get route by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Route
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RouteResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Routes]
+      summary: Update route
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RouteUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RouteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Routes]
+      summary: Delete route (if no dependent trips)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/stops:
+    get:
+      tags: [Stops]
+      summary: Search stops by name
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of stops
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StopResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Stops]
+      summary: Create stop
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StopCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StopResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/routes/{id}/stops:
+    get:
+      tags: [Routes]
+      summary: List stops for a route with order & offsets
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Route stops
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RouteStopResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [Routes]
+      summary: Replace route stop sequence (atomic)
+      description: Full replacement of stop sequence with stop_order and arrival_offset_min
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 2
+              items: { $ref: '#/components/schemas/RouteStopUpsertItem' }
+      responses:
+        '200': { description: Updated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/trips:
+    get:
+      tags: [Trips]
+      summary: Search trips (by route name/id, date range, status)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: routeId
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: routeName
+          schema: { type: string }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: status
+          schema: { type: string, enum: [SCHEDULED, CANCELLED, COMPLETED] }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        '200':
+          description: Page of trips
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PageTripResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Trips]
+      summary: Create trip with (optional) bus/driver assignment
+      description: Performs conflict checks before persist
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TripCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/trips/{id}:
+    get:
+      tags: [Trips]
+      summary: Get trip detail with route/bus/driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Trip
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Trips]
+      summary: Update trip (times/status/bus/driver) with conflict re-check
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TripUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/trips/{id}:cancel:
+    post:
+      tags: [Trips]
+      summary: Cancel a trip and notify impacted parties
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Cancellation summary (affected bookings)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripCancelResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/availability:
+    get:
+      tags: [Assignments]
+      summary: Check available buses/drivers for a time window
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          required: true
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Available resources
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvailabilityResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/assignments:
+    post:
+      tags: [Assignments]
+      summary: Assign bus and driver to a trip (records audit)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignmentCreateRequest' }
+      responses:
+        '201':
+          description: Assignment created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/bookings/search:
+    get:
+      tags: [Booking]
+      summary: Public trip search (by names, date)
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          description: Search by route name / origin / destination
+        - in: query
+          name: date
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: Matching trips and seat summaries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchTripsResponse' }
+
+  /api/trips/{id}/seats:
+    get:
+      tags: [Booking]
+      summary: Live seat map for a trip
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Seat grid
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SeatMapResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/bookings:
+    post:
+      tags: [Booking]
+      summary: Create a booking with seat selection (atomic)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingCreateRequest' }
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/bookings/{id}:
+    get:
+      tags: [Booking]
+      summary: Booking detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Booking
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/bookings/{id}:cancel:
+    post:
+      tags: [Booking]
+      summary: Cancel booking and compute refund per policy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+        - in: query
+          name: cancelAt
+          required: false
+          schema: { type: string, format: date-time }
+          description: When cancellation requested (defaults to now)
+      responses:
+        '200':
+          description: Cancellation result with refund suggestion
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingCancelResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/payments:
+    post:
+      tags: [Payments]
+      summary: Record payment for a booking (card/cash)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentCreateRequest' }
+      responses:
+        '201':
+          description: Payment recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/tickets:
+    post:
+      tags: [Tickets]
+      summary: Issue ticket for a booking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TicketCreateRequest' }
+      responses:
+        '201':
+          description: Ticket issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TicketResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/tickets/verify:
+    post:
+      tags: [Verifications]
+      summary: Verify ticket by code or passenger name + phone fragment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TicketVerifyRequest' }
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TicketVerifyResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/refunds:
+    post:
+      tags: [Refunds]
+      summary: Create refund against a booking/payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefundCreateRequest' }
+      responses:
+        '201':
+          description: Refund created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RefundResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/drivers/me/trips:
+    get:
+      tags: [Trips]
+      summary: Driver - my assigned trips for a day
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: date
+          schema: { type: string, format: date }
+          required: true
+      responses:
+        '200':
+          description: My trips
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TripResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/issues:
+    post:
+      tags: [Issues]
+      summary: Driver reports issue on a trip
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IssueCreateRequest' }
+      responses:
+        '201':
+          description: Issue created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IssueResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/trips/{id}/manifest:
+    get:
+      tags: [Trips]
+      summary: Passenger manifest for a trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Manifest
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManifestResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/reports/revenue:
+    get:
+      tags: [Reports]
+      summary: Revenue per route within date range
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+          required: true
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+          required: true
+      responses:
+        '200':
+          description: Revenue rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RevenueRow' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /actuator/health:
+    get:
+      tags: [Health]
+      summary: Health check (IT Tech monitoring)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    id:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    size:
+      in: query
+      name: size
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    sort:
+      in: query
+      name: sort
+      schema: { type: string }
+      description: "Sort by: field,(asc|desc). e.g., 'departure_time,asc'"
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Not Found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      additionalProperties: false
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer, minimum: 100, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 160 }
+        password: { type: string, minLength: 8, maxLength: 100 }
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        user: { $ref: '#/components/schemas/UserResponse' }
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+
+    RefreshResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+
+    RoleRef:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+
+    UserRegisterRequest:
+      type: object
+      required: [email, fullName, password, roles]
+      properties:
+        email: { type: string, format: email }
+        fullName: { type: string, minLength: 3, maxLength: 120 }
+        password: { type: string, minLength: 8 }
+        phone: { type: string, maxLength: 32 }
+        roles:
+          type: array
+          minItems: 1
+          items: { type: string, enum: [ADMIN, OPS_MANAGER, BOOKING_CLERK, CUSTOMER_SERVICE, SENIOR_TICKETING, DRIVER, IT_TECH ,PASSENGER] }
+
+    PublicRegisterRequest:
+      type: object
+      required: [ email, fullName, password ]
+      properties:
+        email: { type: string, format: email, maxLength: 160 }
+        fullName: { type: string, minLength: 3, maxLength: 120 }
+        password: { type: string, minLength: 8, maxLength: 100 }
+        phone: { type: string, maxLength: 32 }
+
+    UserCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/UserRegisterRequest'
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 3, maxLength: 120 }
+        phone: { type: string, maxLength: 32 }
+
+    UserResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        phone: { type: string }
+        status: { type: string, enum: [ACTIVE, INACTIVE, LOCKED] }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/RoleRef' }
+        createdAt: { type: string, format: date-time }
+
+    SetRolesRequest:
+      type: object
+      required: [ roles ]
+      properties:
+        roles:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [ ADMIN, OPS_MANAGER, BOOKING_CLERK, CUSTOMER_SERVICE, SENIOR_TICKETING, DRIVER, IT_TECH, PASSENGER ]
+
+
+    StopCreateRequest:
+      type: object
+      required: [name, lat, lng]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        lat: { type: number, minimum: -90, maximum: 90 }
+        lng: { type: number, minimum: -180, maximum: 180 }
+
+    StopResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+
+    RouteCreateRequest:
+      type: object
+      required: [name, origin, destination, durationMin]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120 }
+        origin: { type: string, minLength: 2, maxLength: 120 }
+        destination: { type: string, minLength: 2, maxLength: 120 }
+        distanceKm: { type: number, minimum: 0 }
+        durationMin: { type: integer, minimum: 0 }
+        status: { type: string, enum: [ACTIVE, INACTIVE], default: ACTIVE }
+
+    RouteUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/RouteCreateRequest'
+
+    RouteResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        origin: { type: string }
+        destination: { type: string }
+        distanceKm: { type: number }
+        durationMin: { type: integer }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    RouteStopUpsertItem:
+      type: object
+      required: [stopId, stopOrder, arrivalOffsetMin]
+      properties:
+        stopId: { type: integer, format: int64 }
+        stopOrder: { type: integer, minimum: 1 }
+        arrivalOffsetMin: { type: integer, minimum: 0 }
+
+    RouteStopResponse:
+      type: object
+      properties:
+        stopId: { type: integer, format: int64 }
+        name: { type: string }
+        stopOrder: { type: integer }
+        arrivalOffsetMin: { type: integer }
+
+    TripCreateRequest:
+      type: object
+      required: [routeId, departureTime, arrivalTime]
+      properties:
+        routeId: { type: integer, format: int64 }
+        departureTime: { type: string, format: date-time }
+        arrivalTime: { type: string, format: date-time }
+        busId: { type: integer, format: int64, nullable: true }
+        driverId: { type: integer, format: int64, nullable: true }
+
+    TripUpdateRequest:
+      type: object
+      properties:
+        tripType:
+          type: string
+          enum: [ ONE_TIME, SCHEDULED ]
+          example: ONE_TIME
+        publishAt:
+          type: string
+          format: date-time
+        departureTime:
+          type: string
+          format: date-time
+        arrivalTime:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        status:
+          type: string
+
+    TripResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        route:
+          type: object
+          properties:
+            id: { type: integer, format: int64 }
+            name: { type: string }
+            origin: { type: string }
+            destination: { type: string }
+        departureTime: { type: string, format: date-time }
+        arrivalTime: { type: string, format: date-time }
+        status: { type: string }
+        bus:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BusRef'
+        driver:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DriverRef'
+        reservedSeats: { type: integer }
+
+    BusRef:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        plateNumber: { type: string }
+        capacity: { type: integer }
+
+    DriverRef:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        firstName: { type: string }
+        lastName: { type: string }
+        licenseNo: { type: string }
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        buses:
+          type: array
+          items: { $ref: '#/components/schemas/BusRef' }
+        drivers:
+          type: array
+          items: { $ref: '#/components/schemas/DriverRef' }
+
+    AssignmentCreateRequest:
+      type: object
+      required: [tripId, busId, driverId]
+      properties:
+        tripId: { type: integer, format: int64 }
+        busId: { type: integer, format: int64 }
+        driverId: { type: integer, format: int64 }
+
+    TripCancelResponse:
+      type: object
+      properties:
+        tripId: { type: integer, format: int64 }
+        cancelled: { type: boolean }
+        affectedBookings:
+          type: array
+          items:
+            type: object
+            properties:
+              bookingId: { type: integer, format: int64 }
+              passengerName: { type: string }
+              seats: { type: integer }
+
+    SearchTripsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              trip: { $ref: '#/components/schemas/TripResponse' }
+              freeSeats: { type: integer }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+
+    SeatMapResponse:
+      type: object
+      properties:
+        tripId: { type: integer, format: int64 }
+        capacity: { type: integer }
+        reservedSeats:
+          type: array
+          items: { type: integer }
+
+    PassengerInput:
+      type: object
+      required: [fullName, phone]
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, nullable: true }
+        phone: { type: string, minLength: 7, maxLength: 32 }
+
+    BookingCreateRequest:
+      type: object
+      required: [tripId, passenger, seatNumbers]
+      properties:
+        tripId: { type: integer, format: int64 }
+        passenger: { $ref: '#/components/schemas/PassengerInput' }
+        seatNumbers:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        expectedTotal: { type: number, minimum: 0 }
+
+    BookingResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        tripId: { type: integer, format: int64 }
+        passenger:
+          type: object
+          properties:
+            id: { type: integer, format: int64 }
+            fullName: { type: string }
+            phone: { type: string }
+        seats:
+          type: array
+          items: { type: integer }
+        status: { type: string, enum: [CONFIRMED, CANCELLED] }
+        totalAmount: { type: number }
+        createdAt: { type: string, format: date-time }
+
+    BookingCancelResponse:
+      type: object
+      properties:
+        bookingId: { type: integer, format: int64 }
+        cancelled: { type: boolean }
+        suggestedRefund: { type: number }
+        policyTier: { type: string }
+
+    PaymentCreateRequest:
+      type: object
+      required: [bookingId, amount, method]
+      properties:
+        bookingId: { type: integer, format: int64 }
+        amount: { type: number, minimum: 0 }
+        method: { type: string, enum: [CARD, CASH, ONLINE] }
+        txnRef: { type: string, nullable: true }
+
+    PaymentResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        bookingId: { type: integer, format: int64 }
+        amount: { type: number }
+        method: { type: string }
+        status: { type: string }
+        paidAt: { type: string, format: date-time }
+        txnRef: { type: string, nullable: true }
+
+    TicketCreateRequest:
+      type: object
+      required: [bookingId]
+      properties:
+        bookingId: { type: integer, format: int64 }
+
+    TicketResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        bookingId: { type: integer, format: int64 }
+        ticketCode: { type: string }
+        issuedAt: { type: string, format: date-time }
+        status: { type: string }
+
+    TicketVerifyRequest:
+      type: object
+      properties:
+        ticketCode: { type: string }
+        passengerName: { type: string }
+        phoneLast4: { type: string, minLength: 4, maxLength: 4 }
+      anyOf:
+        - required: [ticketCode]
+        - required: [passengerName, phoneLast4]
+
+    TicketVerifyResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        ticket:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/TicketResponse' }
+        reason: { type: string, nullable: true }
+
+    RefundCreateRequest:
+      type: object
+      required: [bookingId, paymentId, amount, reason]
+      properties:
+        bookingId: { type: integer, format: int64 }
+        paymentId: { type: integer, format: int64 }
+        amount: { type: number, minimum: 0 }
+        reason: { type: string, minLength: 3, maxLength: 255 }
+
+    RefundResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        bookingId: { type: integer, format: int64 }
+        paymentId: { type: integer, format: int64 }
+        amount: { type: number }
+        status: { type: string }
+        processedAt: { type: string, format: date-time, nullable: true }
+
+    IssueCreateRequest:
+      type: object
+      required: [tripId, issueType]
+      properties:
+        tripId: { type: integer, format: int64 }
+        issueType: { type: string, enum: [MECHANICAL, DELAY, INCIDENT] }
+        description: { type: string, maxLength: 2000, nullable: true }
+
+    IssueResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        driverId: { type: integer, format: int64 }
+        tripId: { type: integer, format: int64 }
+        issueType: { type: string }
+        description: { type: string }
+        reportedAt: { type: string, format: date-time }
+        status: { type: string }
+
+    ManifestResponse:
+      type: object
+      properties:
+        tripId: { type: integer, format: int64 }
+        passengers:
+          type: array
+          items:
+            type: object
+            properties:
+              fullName: { type: string }
+              phone: { type: string }
+              seats:
+                type: array
+                items: { type: integer }
+
+    RevenueRow:
+      type: object
+      properties:
+        routeName: { type: string }
+        totalRevenue: { type: number }
+        bookingsCount: { type: integer }
+
+    PageUserResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/UserResponse' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+
+    PageRouteResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RouteResponse' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+
+    PageTripResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TripResponse' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
